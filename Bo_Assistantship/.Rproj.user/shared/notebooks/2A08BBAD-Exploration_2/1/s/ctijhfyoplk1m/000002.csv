@@ -1,0 +1,3 @@
+"0","dataset_id <- ""erm2-nwe9"""
+"0","api_endpoint <- paste0('https://data.cityofnewyork.us/resource/', dataset_id, '.json')"
+"0","api_token <- ""YRWk8RdZZ9xPMVbxc0QaHgYFU"""

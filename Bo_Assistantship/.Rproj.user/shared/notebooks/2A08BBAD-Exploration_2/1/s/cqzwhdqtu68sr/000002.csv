@@ -1,0 +1,13 @@
+"0","All_by_CT <- ct_complaints_all_311 %>% 
+    group_by(ct2010,boro_name) %>% 
+    summarise(n = sum(n)) %>% 
+    left_join(air_quality, by = c(""ct2010"",""boro_name""),suffix = c(""_original"",""_aq"")) %>% 
+    left_join(sewer, by = c(""ct2010"",""boro_name""),suffix = c(""_aq"",""_sewer"")) %>% 
+    left_join(water_system, by = c(""ct2010"",""boro_name""),suffix = c(""_sewer"",""_ws"")) %>% 
+    mutate(aq_prop = n_aq/n_original,
+           sewer_prop = n_sewer/n_original,
+           water_prop = n_ws/n_original) %>% 
+    st_drop_geometry()
+"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"

@@ -1,0 +1,79 @@
+"0",""
+"0","## Adjust inputs if needed:"
+"0","years_all = c(2020:2010)"
+"0","view_complaints_all = complaints"
+"0",""
+"0","## Mapping 8 times, we need 8 datasets for ct and cb "
+"0","map_ct_complaints <- rep(list(ct_complaints_all),8) "
+"0",""
+"0","## Map over the complaints 8 times"
+"0","map_complaints <- c(""Air Quality"",""Lead"",""Water Conservation"",""Industrial Waste"","
+"0","                ""Sewer"",""Water System"",""Asbestos"",""Hazardous Materials"")"
+"0",""
+"0","## Input ""map"" 8 times"
+"0","map_ct <- rep(""map"",8)"
+"0",""
+"0","## For now, put in all years, 8 times."
+"0","map_years <- rep(list(years),8)"
+"0",""
+"0","## Prepare inputs for filtering"
+"0","input_ct <- list(map_ct_complaints,map_complaints,map_ct,map_years)"
+"0",""
+"0","## Filter ct inputs."
+"0","filtered_ct_all <- pmap(input_ct,complaint_filter)"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"
+"0","## Prepare inputs for plotting:"
+"0","map_ct_shapes <- rep(list(ct),8) "
+"0",""
+"0","input_ct_plot <- list(map_ct_shapes,filtered_ct_all, map_ct,map_years,map_complaints)"
+"0",""
+"0",""
+"0","plots_ct <- pmap(input_ct_plot,complaint_mapping)"
+"0","plots_ct"
+"1","[[1]]
+"
+"1","
+"
+"1","[[2]]
+"
+"1","
+"
+"1","[[3]]
+"
+"1","
+"
+"1","[[4]]
+"
+"1","
+"
+"1","[[5]]
+"
+"1","
+"
+"1","[[6]]
+"
+"1","
+"
+"1","[[7]]
+"
+"1","
+"
+"1","[[8]]
+"
+"1","
+"

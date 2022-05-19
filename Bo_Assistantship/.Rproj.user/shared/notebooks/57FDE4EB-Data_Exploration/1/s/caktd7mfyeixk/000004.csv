@@ -1,0 +1,48 @@
+"0","years_all = c(2020:2010)
+view_complaints_all = complaints
+
+## Mapping 8 times, we need 8 datasets for ct and cb 
+map_ct_complaints <- rep(list(ct_complaints_all),3) 
+
+## Map over the complaints 8 times
+map_complaints <- c(""Air Quality"",
+                ""Sewer"",""Water System"")
+
+## Input ""map"" 8 times
+map_ct <- rep(""map"",3)
+
+## For now, put in all years, 8 times.
+map_years <- rep(list(years),3)
+
+## Prepare inputs for filtering
+input_ct <- list(map_ct_complaints,map_complaints,map_ct,map_years)
+
+## Filter ct inputs.
+filtered_ct_all <- pmap(input_ct,complaint_filter)
+"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"
+"1","`summarise()` has grouped output by 'ct2010'. You can override using the `.groups` argument.
+"
+"0","## Prepare inputs for plotting:"
+"0","map_ct_shapes <- rep(list(ct),3) "
+"0",""
+"0","input_ct_plot <- list(map_ct_shapes,filtered_ct_all, map_ct,map_years,map_complaints)"
+"0",""
+"0",""
+"0","plots_ct <- pmap(input_ct_plot,complaint_mapping)"
+"0","plots_ct"
+"1","[[1]]
+"
+"1","
+"
+"1","[[2]]
+"
+"1","
+"
+"1","[[3]]
+"
+"1","
+"

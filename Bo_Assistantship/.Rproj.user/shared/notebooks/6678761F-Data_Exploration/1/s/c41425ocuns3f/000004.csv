@@ -1,0 +1,6 @@
+"0","DEP_Query_by_type <-DEP_Query %>% "
+"0","  group_by(complaint_type) %>% "
+"0","  count() %>% "
+"0","  arrange(by = n)"
+"0",""
+"0","DEP_Query_by_type"

@@ -1,0 +1,50 @@
+"0","# Map all complaints, over all years."
+"0",""
+"0",""
+"0","norm_plotnames_DEP = imap(map_complaints, ~paste0(""../4_Outputs/"",., ""_norm_DEP_quant.png"")) %>%"
+"0","     flatten()"
+"0",""
+"0","norm_plotnames_DEP"
+"1","[[1]]
+"
+"1","[1]"
+"1"," ""../4_Outputs/Air Quality_norm_DEP_quant.png"""
+"1","
+"
+"1","
+"
+"1","[[2]]
+"
+"1","[1]"
+"1"," ""../4_Outputs/Sewer_norm_DEP_quant.png"""
+"1","
+"
+"1","
+"
+"1","[[3]]
+"
+"1","[1]"
+"1"," ""../4_Outputs/Water System_norm_DEP_quant.png"""
+"1","
+"
+"1","
+"
+"0","pwalk(list(proportion_DEP_all,norm_plotnames_DEP), tmap_save)"
+"2","Map saved to /Users/seanchew/Desktop/Bo_Assistantship 2/4_Outputs/Air Quality_norm_DEP_quant.png
+"
+"2","Resolution: 2110.23 by 2089.82 pixels
+"
+"2","Size: 7.034099 by 6.966066 inches (300 dpi)
+"
+"2","Map saved to /Users/seanchew/Desktop/Bo_Assistantship 2/4_Outputs/Sewer_norm_DEP_quant.png
+"
+"2","Resolution: 2110.23 by 2089.82 pixels
+"
+"2","Size: 7.034099 by 6.966066 inches (300 dpi)
+"
+"2","Map saved to /Users/seanchew/Desktop/Bo_Assistantship 2/4_Outputs/Water System_norm_DEP_quant.png
+"
+"2","Resolution: 2110.23 by 2089.82 pixels
+"
+"2","Size: 7.034099 by 6.966066 inches (300 dpi)
+"

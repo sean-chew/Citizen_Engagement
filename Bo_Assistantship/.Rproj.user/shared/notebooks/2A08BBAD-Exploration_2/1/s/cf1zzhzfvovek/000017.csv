@@ -1,0 +1,48 @@
+"0",""
+"0",""
+"0","All_by_CT_plot <- ct %>% "
+"0","    left_join(All_by_CT, by = c(""ct2010"",""boro_name""))"
+"0",""
+"0","air_quality_all <- tm_shape(All_by_CT_plot) +"
+"0","    tm_fill(""aq_prop"",title=""Complaints"",style=""jenks"", palette = ""viridis"", lwd = .01,n =10) +"
+"0","    tm_layout(main.title = paste0(""NYC Complaints from Air Quality""),"
+"0","              main.title.position = ""center"","
+"0","              main.title.size = 1,"
+"0","              main.title.fontface = 2) "
+"0",""
+"0","tmap_save(air_quality_all,""../4_Outputs/Air_Quality_prop_all_jenks.png"")"
+"2","Map saved to ../4_Outputs/Air_Quality_prop_all_jenks.png
+"
+"2","Resolution: 2110.23 by 2089.82 pixels
+"
+"2","Size: 7.034099 by 6.966066 inches (300 dpi)
+"
+"0","  "
+"0","sewer_all <- tm_shape(All_by_CT_plot) +"
+"0","    tm_fill(""sewer_prop"",title=""Complaints"",style=""jenks"", palette = ""viridis"", lwd = .01,n =10) +"
+"0","    tm_layout(main.title = paste0(""NYC Complaints from Sewers""),"
+"0","              main.title.position = ""center"","
+"0","              main.title.size = 1,"
+"0","              main.title.fontface = 2)"
+"0",""
+"0","tmap_save(sewer_all,""../4_Outputs/sewer_prop_all_jenks.png"")"
+"2","Map saved to ../4_Outputs/sewer_prop_all_jenks.png
+"
+"2","Resolution: 2110.23 by 2089.82 pixels
+"
+"2","Size: 7.034099 by 6.966066 inches (300 dpi)
+"
+"0","water_all <- tm_shape(All_by_CT_plot) +"
+"0","    tm_fill(""water_prop"",title=""Complaints"",style=""jenks"", palette = ""viridis"", lwd = .01,n =10) +"
+"0","    tm_layout(main.title = paste0(""NYC Complaints from Water System""),"
+"0","              main.title.position = ""center"","
+"0","              main.title.size = 1,"
+"0","              main.title.fontface = 2)"
+"0",""
+"0","tmap_save(water_all,""../4_Outputs/water_prop_all_jenks.png"")"
+"2","Map saved to ../4_Outputs/water_prop_all_jenks.png
+"
+"2","Resolution: 2110.23 by 2089.82 pixels
+"
+"2","Size: 7.034099 by 6.966066 inches (300 dpi)
+"

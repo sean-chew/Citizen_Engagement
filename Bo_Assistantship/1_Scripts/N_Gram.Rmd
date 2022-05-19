@@ -1,0 +1,162 @@
+---
+title: "NGram_Exploration"
+author: "Sean"
+date: "2/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+### Set Environment ------------------------------------------------------------
+# Clear the environment
+# rm(list=ls())
+# gc()
+# So the code will compile warnings as per usual
+options(warn = 0)
+# Turn off scientific notation
+options(scipen = 999)
+### Load Packages --------------------------------------------------------------
+
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(dplyr, magrittr, stringr, reshape2, janitor,
+lubridate, readxl, data.table, ggplot2, scales, readr,
+tidyr, zoo, skimr, openxlsx,ggspatial, rgeos, data.table,RColorBrewer,
+tidyverse, rio, collapse, sf, glue, XML, tm, here, purrr, repurrrsive,
+tmap,tidygraph, nabor,igraph, viridis, hrbrthemes,RSocrata,soql,tidytext)
+
+### Begin Code -----------------------------------------------------------------
+```
+Read in DEP Complaints
+```{r}
+getwd()
+DEP_Query <- read_rds("../3_Intermediate/DEP_Data.rds")
+```
+
+Testing out ngram packages.
+```{r}
+
+DEP_Query %>% head
+
+DEP_resolution <- DEP_Query %>% 
+    select(c("complaint_type","resolution_description"))
+
+DEP_descriptors <- DEP_Query %>% 
+    select(c("complaint_type","descriptor"))
+
+resolution_ngrams <- DEP_resolution %>%
+  unnest_tokens(ngram, resolution_description, token = "ngrams", n = 4) %>% 
+    count(ngram,sort = TRUE)
+
+descriptors_ngrams <- DEP_descriptors %>%
+  unnest_tokens(ngram, descriptor, token = "ngrams", n = 4) %>% 
+    count(ngram,sort = TRUE)
+```
+```{r}
+
+descriptors_ngrams %>%
+    head(30)%>%
+    arrange(desc(n)) %>% 
+    drop_na %>% 
+    ggplot(aes(x =  n, y = reorder(ngram,n))) +
+    geom_col(show.legend = FALSE) +
+    labs(x = "Number of Occurances",
+         y = "Ngram")
+
+resolution_ngrams %>%
+    head(30)%>%
+    arrange(desc(n)) %>% 
+    drop_na %>% 
+    ggplot(aes(x =  n, y = reorder(ngram,n))) +
+    geom_col(show.legend = FALSE) +
+    labs(x = "Number of Occurances",
+         y = "Ngram")
+```
+```{r}
+complaint_types <- c("Water System","Air Quality", "Sewer" )
+resolution_inputs <- list(DEP_Query,complaint_types)
+
+by_type_filter_resolution <- function(x){
+    filtered <- DEP_Query %>% 
+        filter(complaint_type == x) %>% 
+        select(c("complaint_type","resolution_description")) %>% 
+        unnest_tokens(ngram, resolution_description, token = "ngrams", n = 4) %>% 
+        count(ngram,sort = TRUE)
+return(filtered)
+}
+by_type_filter_descriptor <- function(x){
+    filtered <- DEP_Query %>% 
+        filter(complaint_type == x) %>% 
+        select(c("complaint_type","descriptor")) %>% 
+        unnest_tokens(ngram, descriptor, token = "ngrams", n = 4) %>% 
+        count(ngram,sort = TRUE)
+return(filtered)
+}
+
+ngram_plot <- function(x){
+    plot <- x %>%
+        as.data.frame() %>% 
+        head(30)%>%
+        arrange(desc(n)) %>% 
+        drop_na %>% 
+        ggplot(aes(x =  n, y = reorder(ngram,n))) +
+        geom_col(show.legend = FALSE) +
+        labs(x = "Number of Occurances",
+             y = "Ngram")
+    return(plot)
+}
+
+resolution_ngrams_by_cat <- map(complaint_types,by_type_filter_resolution)
+descriptor_ngrams_by_cat <- map(complaint_types,by_type_filter_descriptor)
+
+# resolution_ngram_plots<-map(resolution_ngrams_by_cat,ngram_plot)
+descriptor_ngram_plots<-map(descriptor_ngrams_by_cat,ngram_plot)
+
+# The descriptors after the first 11 are unimportant, it seems
+descriptor_ngram_plots <- descriptor_ngram_plots[1:11]
+
+
+plotnames = imap(complaint_types[1:11], ~paste0("../4_Outputs/",., "_ngrams.png")) %>%
+    flatten()
+plotnames
+
+pwalk(list(descriptor_ngram_plots,plotnames), ggsave)
+walk2(plotnames, descriptor_ngram_plots, ~ggsave(filename = .x, plot = .y, 
+                                             height = 7, width = 7))
+```
+https://www.tidytextmining.com/ngrams.html
+^ Potential for graphs.
+```{r}
+library(tidyverse)
+install.packages("stringdist")
+library(stringdist)
+
+aq <- by_type_filter_descriptor("Air Quality")
+sw <- by_type_filter_descriptor("Sewer") 
+ws <- by_type_filter_descriptor("Water System") 
+
+aq_sorted <- map_dfr(aq$ngram, ~ {
+    i <- which(stringdist(., aq$ngram, "jw") < 0.2)
+    tibble(index = i, ngram = aq$ngram[i])
+}, .id = "group") %>%
+    distinct(index, .keep_all = T) %>% 
+    mutate(group = as.integer(group)) %>% 
+  left_join(aq, by = c("ngram"))%>% write_csv("../4_Outputs/ngram_aq.csv")
+
+sw_sorted <- map_dfr(sw$ngram, ~ {
+    i <- which(stringdist(., sw$ngram, "jw") < 0.2)
+    tibble(index = i, ngram = sw$ngram[i])
+}, .id = "group") %>%
+    distinct(index, .keep_all = T) %>% 
+    mutate(group = as.integer(group)) %>% 
+  left_join(sw, by = c("ngram"))%>% write_csv("../4_Outputs/ngram_sw.csv")
+
+ws_sorted <- map_dfr(ws$ngram, ~ {
+    i <- which(stringdist(., ws$ngram, "jw") < 0.2)
+    tibble(index = i, ngram = ws$ngram[i])
+}, .id = "group") %>%
+    distinct(index, .keep_all = T) %>% 
+    mutate(group = as.integer(group)) %>% 
+  left_join(ws, by = c("ngram"))%>% write_csv("../4_Outputs/ngram_ws.csv")
+
+```
+
+
