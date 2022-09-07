@@ -1,0 +1,52 @@
+---
+title: "Pulling_FEMA_Related_Data"
+author: "Sean"
+date: '2022-06-28'
+output: html_document
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+### Set Environment ------------------------------------------------------------
+# Clear the environment
+rm(list=ls())
+gc()
+# So the code will compile warnings as per usual
+options(warn = 0)
+# Turn off scientific notation
+options(scipen = 999)
+### Load Packages --------------------------------------------------------------
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(dplyr, magrittr, stringr, reshape2, janitor,
+lubridate, readxl, data.table, ggplot2, scales, readr,
+tidyr, zoo, skimr, openxlsx,ggspatial, rgeos, data.table,RColorBrewer,
+tidyverse, rio, collapse, sf, glue, XML, tm, here, purrr, repurrrsive,
+tmap,tidygraph, nabor,igraph, viridis, hrbrthemes,RSocrata,soql,xts,
+tidycensus)
+```
+
+## R Markdown
+
+```{r}
+dataset_id <- "erm2-nwe9"
+api_endpoint <- paste0('https://data.cityofnewyork.us/resource/', dataset_id, '.json')
+api_token <- "YRWk8RdZZ9xPMVbxc0QaHgYFU"
+source("./FEMA_Functions.R")
+```
+```{r}
+NYCEM_Terms <- c("Mold","MOLD","Electric","ELECTRIC","Electrical","Indoor Sewage","Plumbing","PLUMBING","FLOORING/STAIRS",
+  "WATER LEAK")
+
+NYCEM_params <- map_dfr(NYCEM_Terms,complaint_query)
+```
+
+## I need to turn the
+```{r}
+NYCEM_spatial <-   NYCEM_params %>% 
+    drop_na(x_coordinate_state_plane,y_coordinate_state_plane) %>% 
+    st_as_sf(coords = c("x_coordinate_state_plane","y_coordinate_state_plane"),
+                             crs = 2263) %>% 
+    mutate(year = year(created_date)) 
+
+saveRDS(NYCEM_spatial,"./3_Intermediate/NYCEM_spatial.RDS")
+```

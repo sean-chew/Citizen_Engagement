@@ -1,0 +1,85 @@
+---
+title: "Cold_Weather_Exploration"
+author: "Sean"
+date: "8/29/2022"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+### Set Environment ------------------------------------------------------------
+# Clear the environment
+rm(list=ls())
+gc()
+# So the code will compile warnings as per usual
+options(warn = 0)
+# Turn off scientific notation
+options(scipen = 999)
+### Load Packages --------------------------------------------------------------
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(dplyr, magrittr, stringr, reshape2, janitor,
+lubridate, readxl, data.table, ggplot2, scales, readr,
+tidyr, zoo, skimr, openxlsx,ggspatial, rgeos, data.table,RColorBrewer,
+tidyverse, rio, collapse, sf, glue, XML, tm, here, purrr, repurrrsive,
+tmap,tidygraph, nabor,igraph, viridis, hrbrthemes,RSocrata,soql,xts,
+tidycensus)
+```
+
+
+### Functions Used:
+```{r}
+source("./Exploration_Functions.R")
+```
+
+# Data Exploration of 311 Data
+
+## Part 1: Exploring different agencies and setting API up:
+
+### First Test of 311 data:
+
+
+```{r}
+dataset_id <- "erm2-nwe9"
+api_endpoint <- paste0('https://data.cityofnewyork.us/resource/', dataset_id, '.json')
+api_token <- "YRWk8RdZZ9xPMVbxc0QaHgYFU"
+```
+First step will be to set up our environment and begin querying using the 
+socrata package. I will test 10,000 entries first.
+
+```{r}
+query_params <- soql() %>%
+    soql_add_endpoint(api_endpoint) %>%
+    soql_limit(10000)
+
+query <- read.socrata(
+  query_params,
+  app_token = api_token
+)
+
+names(query)
+agencies <- unique(query$agency)
+agencies
+```
+
+
+```{r}
+sample <- sample(query,100,replace = TRUE)
+```
+
+
+```{r}
+## For Querying:
+DOHMH_params <- soql() %>%
+    soql_add_endpoint(api_endpoint) %>%
+    soql_simple_filter("agency","DOHMH") %>% 
+    soql_limit(10000)
+DOHMH <- read.socrata(
+  DOHMH_params,
+  app_token = api_token
+)
+        
+# saveRDS(DEP_Query,"DEP_Data.rds")
+```
+

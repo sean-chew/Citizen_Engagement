@@ -1,0 +1,165 @@
+---
+title: "storm_specific_analysis"
+author: "Sean"
+date: "4/29/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+################################################################################
+###   Author: Sean Chew
+###   PURPOSE:
+################################################################################
+
+### Set Environment ------------------------------------------------------------
+# Clear the environment
+rm(list=ls())
+gc()
+# So the code will compile warnings as per usual
+options(warn = 0)
+# Turn off scientific notation
+options(scipen = 999)
+### Load Packages --------------------------------------------------------------
+
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(dplyr, magrittr, stringr, reshape2, janitor,
+lubridate, readxl, data.table, ggplot2, scales, readr,
+tidyr, zoo, skimr, openxlsx,ggspatial, rgeos, data.table,RColorBrewer,
+tidyverse, rio, collapse, sf, glue, XML, tm, here, purrr, repurrrsive,
+tmap,tidygraph, nabor,igraph, viridis, hrbrthemes,RSocrata,soql,tmaptools,
+gganimate,gifski,ggmap,tidytext)
+
+### Begin Code -----------------------------------------------------------------
+
+
+
+```
+
+```{r cars}
+DEP_Data <- read_rds("../3_Intermediate/DEP_Data.rds")
+```
+
+```{r}
+head(DEP_Data)
+IDA_Data <-  DEP_Data %>% 
+    filter(created_date >= as.Date("2021-08-26")) %>% 
+    filter(created_date <= as.Date("2021-09-04")) 
+
+IDA_Date <- IDA_Data%>% 
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date)) %>% 
+    group_by(complaint_type,year,month,day) %>% 
+    count() %>% 
+    mutate(date = as.Date(paste0(year,"-",month,"-",day)))
+
+names(IDA_Date)
+
+ggplot(IDA_Date, aes(IDA_Date$date, n ,color = IDA_Date$complaint_type)) +
+    geom_line() +
+    scale_color_viridis(discrete = T) +
+    theme_minimal() +
+    xlab("Ida Timeframe") +
+    scale_y_continuous(label=comma)
+
+ggsave("../4_Outputs/IDA_complaints.png")
+
+Sandy_Data <-  DEP_Data %>% 
+    filter(created_date >= as.Date("2012-10-22")) %>% 
+    filter(created_date <= as.Date("2012-11-2")) 
+
+Sandy_Date <- Sandy_Data %>% 
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date)) %>% 
+    group_by(complaint_type,year,month,day) %>% 
+    count() %>% 
+    mutate(date = as.Date(paste0(year,"-",month,"-",day)))
+
+ggplot(Sandy_Date, aes(Sandy_Date$date, n ,color = Sandy_Date$complaint_type)) +
+    geom_line() +
+    scale_color_viridis(discrete = T) +
+    theme_minimal() +
+    xlab("Sandy Timeframe") +
+    scale_y_continuous(label=comma)
+
+ggsave("../4_Outputs/Sandy_complaints.png")
+
+```
+
+
+```{r}
+DEP_points <- read_rds("../3_Intermediate/DEP_points.rds")
+
+IDA_Data <-  DEP_points %>% 
+    filter(created_date >= as.Date("2021-08-26")) %>% 
+    filter(created_date <= as.Date("2021-09-04"),
+           complaint_type == "Sewer") %>%
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date),
+           date = as.Date(paste0(year,"-",month,"-",day)))
+
+Sandy_Data <- DEP_points %>% 
+    filter(created_date >= as.Date("2012-10-22")) %>% 
+    filter(created_date <= as.Date("2012-11-2"),
+           complaint_type == "Sewer") %>% 
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date),
+           date = as.Date(paste0(year,"-",month,"-",day)))
+
+```
+
+```{r}
+boroughs <- read_sf("../2_Data/borough_boundaries/geo_export_b5bd9a81-0a45-411a-a23f-8a1983296a03.shp")
+tracts <- read_sf("../2_Data/ct_2010/geo_export_1c19ce5f-d77c-4a3f-adbe-7456e4a782a6.shp")
+parks <- read_sf("../2_Data/Open Space (Parks)/geo_export_2addf878-38fa-4c00-8396-5aa5bf54644c.shp")
+```
+
+```{r}
+anim_ida <- tm_shape(tracts) +
+    tm_polygons(lwd = .1) +
+    tm_shape(parks) +
+    tm_fill(col = "#99d8c9",alpha = .5)+
+    tm_shape(IDA_Data)+
+    tm_dots() +
+    tm_facets(along = "date", free.coords = FALSE) +
+    tm_layout(
+              main.title.size = 1,
+              main.title.fontface = 2
+    )
+
+anim_ida
+```
+
+
+```{r}
+tmap_animation(tm=anim_ida, filename = "../4_Outputs/Ida.gif", delay = 100)
+```
+
+
+```{r}
+
+anim_sandy <- tm_shape(tracts) +
+    tm_polygons(lwd = .1) +
+    tm_shape(parks) +
+    tm_fill(col = "#99d8c9",alpha = .5)+
+    tm_shape(Sandy_Data)+
+    tm_dots() +
+    tm_facets(along = "date", free.coords = FALSE) +
+    tm_layout(
+              main.title.size = 1,
+              main.title.fontface = 2
+    )
+
+anim_sandy
+
+
+```
+
+
+```{r}
+tmap_animation(tm=anim_sandy, filename = "../4_Outputs/sandy.gif", delay = 100)
+```
+

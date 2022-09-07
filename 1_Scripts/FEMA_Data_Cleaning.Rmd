@@ -1,0 +1,209 @@
+---
+title: "FEMA_Data_Cleaning"
+author: "Sean"
+date: '2022-07-9'
+output:
+  pdf: 
+
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+### Set Environment ------------------------------------------------------------
+# Clear the environment
+rm(list=ls())
+gc()
+# So the code will compile warnings as per usual
+options(warn = 0)
+# Turn off scientific notation
+options(scipen = 999)
+### Load Packages --------------------------------------------------------------
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(dplyr, magrittr, stringr, reshape2, janitor,
+lubridate, readxl, data.table, ggplot2, scales, readr,
+tidyr, zoo, skimr, openxlsx,ggspatial, rgeos, data.table,RColorBrewer,
+tidyverse, rio, collapse, sf, glue, XML, tm, here, purrr, repurrrsive,
+tmap,tidygraph, nabor,igraph, viridis, hrbrthemes,RSocrata,soql,xts,
+tidycensus,tmaptools, eks,forcats)
+```
+
+
+### Goal of this script is to read the FEMA data and clean it to get the relevant grants during Sandy and Ida.
+```{r}
+FEMA <- read_csv("../2_Data/FEMA/IndividualsAndHouseholdsProgramValidRegistrations.csv")
+names(FEMA)
+zips<- read_sf("../2_Data/ZIP_CODE_040114/ZIP_CODE_040114.shp") 
+
+zips_dissolve <- zips %>% 
+    group_by(ZIPCODE) %>% 
+    summarise(pop = mean(POPULATION)) %>% 
+    st_cast() 
+    
+```
+Look at the types of incidents there are:
+```{r}
+FEMA_incident_Type <- FEMA %>% 
+    group_by(incidentType) %>% 
+    count() %>% 
+    arrange(desc(n)) %>% 
+    ungroup() 
+
+FEMA_incident_Type %>% 
+    mutate(incidentType = fct_reorder(incidentType, n)) %>% 
+    ggplot(aes(y=n, x = incidentType)) +
+    geom_bar(stat="identity", fill="#f68060", alpha=.6, width=.4) +
+    coord_flip() +
+    theme_minimal()
+
+```
+
+
+Filter down the FEMA dataset so that we're only looking at those that exist in New York City.
+```{r}
+NYC_FEMA <- FEMA %>% 
+    filter(damagedZipCode %in% zips$ZIPCODE)
+```
+
+Look at the types of incidents there are:
+```{r}
+NYC_FEMA_incident_Type <- NYC_FEMA %>% 
+    group_by(incidentType) %>% 
+    count() %>% 
+    arrange(desc(n)) %>% 
+    ungroup() 
+
+NYC_FEMA_incident_Type %>% 
+    mutate(incidentType = fct_reorder(incidentType, n)) %>% 
+    ggplot(aes(y=n, x = incidentType)) +
+    geom_bar(stat="identity", fill="#f68060", alpha=.6, width=.4) +
+    coord_flip() +
+    theme_minimal()
+```
+
+What is the time frame for these complaints?
+```{r}
+NYC_FEMA_overtime <- NYC_FEMA %>% 
+    group_by(declarationDate,incidentType) %>% 
+    count() %>% 
+    ungroup() 
+
+NYC_FEMA_overtime
+
+NYC_FEMA_overtime %>% 
+    ggplot(aes(x=declarationDate, y=n, group=incidentType, color=incidentType)) +
+    geom_point()
+
+```
+Because it looks like there is a very clear distinction of when Sandy and Ida complaints are, we will filter for that date.
+They correspond with these dates:
+
+2012-10-30 04:34:00
+2021-09-05 23:36:00
+
+```{r}
+sandy_date <- as_date("2012-10-30 04:34:00")
+ida_date <- as_date("2021-09-05 23:36:00")
+hurricane_dates <- c(sandy_date,ida_date)
+
+NYC_FEMA_Hurricane <- NYC_FEMA %>% 
+    mutate(date = as_date(declarationDate),
+           ihpEligible = ifelse(ihpEligible == 1,"Eligible","Ineligible"),
+           floodDamage = ifelse(floodDamage == 1,"damaged","notdamaged")) %>% 
+    filter(date %in% hurricane_dates) 
+```
+```{r}
+NYC_FEMA_Hurricane_by_zipcode <- NYC_FEMA_Hurricane %>% 
+    group_by(date, damagedZipCode, ihpEligible) %>% 
+    count() %>% 
+    ungroup() %>% 
+    pivot_wider(names_from = c("ihpEligible","date"),values_from = n)
+
+NYC_FEMA_Hurricane_damage_by_zipcode <- NYC_FEMA_Hurricane %>% 
+    group_by(date, damagedZipCode, floodDamage) %>% 
+    count() %>% 
+    ungroup() %>% 
+    pivot_wider(names_from = c("floodDamage","date"),values_from = n) %>% 
+    rename()
+
+names(NYC_FEMA_Hurricane_by_zipcode)
+
+NYC_FEMA_Spatial <- zips_dissolve %>%
+    left_join(NYC_FEMA_Hurricane_by_zipcode, by = c("ZIPCODE"="damagedZipCode")) %>% 
+    mutate(eligible_Sandy_pc = `Eligible_2012-10-30`/pop,
+           ineligible_Sandy_pc = `Ineligible_2012-10-30`/pop,
+           eligible_Ida_pc = `Eligible_2021-09-05`/pop,
+           ineligible_Ida_pc = `Ineligible_2021-09-05`/pop,)
+
+NYC_FEMA_damage_Spatial <- zips_dissolve %>%
+    left_join(NYC_FEMA_Hurricane_damage_by_zipcode, by = c("ZIPCODE"="damagedZipCode")) %>% 
+    mutate(damaged_sandy_pc = `damaged_2012-10-30`/pop,
+           damaged_ida_pc = `damaged_2021-09-05`/pop) %>% 
+    rename(damaged_sandy = `damaged_2012-10-30`,
+           damaged_ida = `damaged_2021-09-05`) %>% 
+    select(-contains("not"))
+    
+
+```
+
+```{r}
+tm_shape(NYC_FEMA_Spatial) + 
+    tm_polygons(col='Eligible_2012-10-30', title = "Sandy FEMA Eligible Assistances", palette = "viridis") + 
+    tm_scale_bar(position = c("right", "top")) 
+
+tm_shape(NYC_FEMA_Spatial) + 
+    tm_polygons(col='Ineligible_2012-10-30', title = "Sandy FEMA Ineligible Assistances", palette = "viridis") + 
+    tm_scale_bar(position = c("right", "top")) 
+
+tm_shape(NYC_FEMA_Spatial) + 
+    tm_polygons(col='Eligible_2021-09-05', title = "Ida FEMA Eligible Assistances", palette = "viridis") + 
+    tm_scale_bar(position = c("right", "top")) 
+
+tm_shape(NYC_FEMA_Spatial) + 
+    tm_polygons(col='Ineligible_2021-09-05', title = "Ida FEMA Ineligible Assistances", palette = "viridis") + 
+    tm_scale_bar(position = c("right", "top")) 
+```
+```{r}
+
+tm_shape(NYC_FEMA_Spatial) + 
+    tm_polygons(col='eligible_sandy_pc', title = "Sandy FEMA Eligible Assistances", palette = "viridis", style = "jenks") + 
+    tm_scale_bar(position = c("right", "top")) 
+
+tm_shape(NYC_FEMA_Spatial) + 
+    tm_polygons(col='ineligible_sandy_pc', title = "Sandy FEMA Ineligible Assistances", palette = "viridis",style = "jenks") + 
+    tm_scale_bar(position = c("right", "top")) 
+
+tm_shape(NYC_FEMA_Spatial) + 
+    tm_polygons(col='eligible_Ida_pc', title = "Ida FEMA Eligible Assistances", palette = "viridis",style = "jenks") + 
+    tm_scale_bar(position = c("right", "top")) 
+
+tm_shape(NYC_FEMA_Spatial) + 
+    tm_polygons(col='ineligible_Ida_pc', title = "Ida FEMA Ineligible Assistances", palette = "viridis",style = "jenks") + 
+    tm_scale_bar(position = c("right", "top")) 
+```
+```{r}
+tm_shape(NYC_FEMA_damage_Spatial) + 
+    tm_polygons(col='damaged_sandy', title = "Sandy FEMA damage", palette = "viridis",style = "jenks") + 
+    tm_scale_bar(position = c("right", "top")) 
+
+tm_shape(NYC_FEMA_damage_Spatial) + 
+    tm_polygons(col='damaged_sandy_pc', title = "Sandy FEMA damages per capita", palette = "viridis",style = "jenks") + 
+    tm_scale_bar(position = c("right", "top")) 
+
+tm_shape(NYC_FEMA_damage_Spatial) + 
+    tm_polygons(col='damaged_ida', title = "Ida FEMA damage", palette = "viridis",style = "jenks") + 
+    tm_scale_bar(position = c("right", "top")) 
+
+tm_shape(NYC_FEMA_damage_Spatial) + 
+    tm_polygons(col='damaged_ida_pc', title = "Ida FEMA damages per capita", palette = "viridis",style = "jenks") + 
+    tm_scale_bar(position = c("right", "top")) 
+```
+
+
+```{r}
+write_sf(NYC_FEMA_Spatial, "../3_Intermediate/FEMA_Cleaned.shp")
+write_sf(NYC_FEMA_damage_Spatial, "../3_Intermediate/FEMA_Cleaned_damage.shp")
+## Write to SF, then bring back to FEMA_Exploration
+```
+
+
+

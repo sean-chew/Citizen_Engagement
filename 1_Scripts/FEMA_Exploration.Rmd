@@ -1,0 +1,276 @@
+---
+title: "FEMA_Exploration"
+author: "Sean"
+date: '2022-06-21'
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    toc: yes
+    df_print: paged
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+### Set Environment ------------------------------------------------------------
+# Clear the environment
+rm(list=ls())
+gc()
+# So the code will compile warnings as per usual
+options(warn = 0)
+# Turn off scientific notation
+options(scipen = 999)
+### Load Packages --------------------------------------------------------------
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(dplyr, magrittr, stringr, reshape2, janitor,
+lubridate, readxl, data.table, ggplot2, scales, readr,
+tidyr, zoo, skimr, openxlsx,ggspatial, rgeos, data.table,RColorBrewer,
+tidyverse, rio, collapse, sf, glue, XML, tm, here, purrr, repurrrsive,
+tmap,tidygraph, nabor,igraph, viridis, hrbrthemes,RSocrata,soql,xts,
+tidycensus,tmaptools, eks, leaflet, maps, rosm)
+```
+
+# Investigation of 311 Complaints and FEMA Assistance Data:
+## Purpose:
+The purpose of this analysis will be to:
+
+1. Investigate 311 complaints from NYC Open Data from two sources: 
++ those reported by DEP (as pulled previously) and 
++ those specified by NYCEM (Mold, electric, sewage, plumbing, leak, etc.)
+
+2. Then, see if they are colocated with several pieces of information:
+
++ Stormwater flooding
++ Location of FEMA grants during disasters
+
+## I) Analyze NYCEM recommended complaints
+In this section, I want to read in the shapefiles and analyze them to see what exactly they're representing.
+
+### a) Read in Data
+* Here is a description of each shapefile:
+    + **NYCEM_Spatial** contains 311 complaints from: "Mold","MOLD","Electric","ELECTRIC","Electrical","Indoor Sewage","Plumbing","PLUMBING","FLOORING/STAIRS","WATER LEAK"
+    + **DEP_points** were the 311 compmlaints from Department of Environmental Protection pulled previously.
+    + **extreme flood** is a shapefile that is a projections of severe flooding scenarios in NYC.
+    + **NYC_FEMA_Spatial** is a shapefile I created from the dataset that shows FEMA grants during disasters, which is reported at the zip code level at its most granular in order to protect people's privac, as downloaded here: https://www.fema.gov/openfema-data-page/individuals-and-households-program-valid-registrations-v1. One important thing to note is that it provides information on the applications for assistance during the storms, and *whether or not the household was able to get the assistance*. I will be using this in the analysis to show whether or not households got the help they needed.  
+
+
+```{r, include = TRUE}
+NYCEM_spatial <- readRDS("../3_Intermediate/NYCEM_spatial.RDS") 
+DEP_points <- read_rds("../3_Intermediate/DEP_points.rds")
+boroughs <- read_sf("../2_Data/borough_boundaries/geo_export_b5bd9a81-0a45-411a-a23f-8a1983296a03.shp")
+tracts <- read_sf("../2_Data/ct_2010/geo_export_1c19ce5f-d77c-4a3f-adbe-7456e4a782a6.shp")
+parks <- read_sf("../2_Data/Open Space (Parks)/geo_export_2addf878-38fa-4c00-8396-5aa5bf54644c.shp")
+zips<- read_sf("../2_Data/ZIP_CODE_040114/ZIP_CODE_040114.shp")
+
+moderate_flood <- read_sf("../2_Data/moderate_floodmap/moderate_floodmap.shp")%>% 
+  st_transform(crs = 2263) %>% 
+  filter(Flooding_C == 2) %>%
+  st_zm(flood) %>% 
+    st_make_valid()
+
+extreme_flood <-read_sf("../2_Data/extreme_floodmap/Extreme_Flood.shp")%>% 
+    st_make_valid() %>% 
+    st_set_crs(2263)
+
+NYC_FEMA_Spatial <- read_sf("../3_Intermediate/FEMA_Cleaned.shp")
+
+```
+
+### b) Agencies where these occur:
+Within the NYCEM recomended dataset, there are 5 different departments that have these sorts of complaints. This may be useful if we want to pull additional data by agency or by type in the future.
+
+```{r, include = TRUE}
+departments <- NYCEM_spatial %>% 
+    pull(agency_name) %>% 
+    unique
+departments
+```
+
+### c) Time Series visualization (NYCEM Specified v. Pulled DEP): 
+In all the 311 complaints, I wanted to see whether we see a spike in their type during disaster events. This way, it may be more obvious that the complaints had to do with the storm.
+
+In the NYCEM-specified complaints, there wasn't really a huge spike in the complaints during Sandy, but there was for Ida. I'm not really sure what to think of this in particular. This seems to suggest that the most indicative of damage is "plumbing." Overall, it doesn't seem like these descriptions are the best indicator of damaged buildings.
+
+#### i) Time Series Visualization of Ida and Sandy (NYCEM):
+```{r, include = TRUE}
+IDA_Data <-  NYCEM_spatial %>% 
+    filter(created_date >= as.Date("2021-08-15")) %>% 
+    filter(created_date <= as.Date("2021-09-15")) 
+
+IDA_Date <- IDA_Data%>% 
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date)) %>% 
+    group_by(complaint_type,year,month,day) %>% 
+    count() %>% 
+    mutate(date = as.Date(paste0(year,"-",month,"-",day)))
+
+Sandy_Data <-  NYCEM_spatial %>% 
+    filter(created_date >= as.Date("2012-10-1")) %>% 
+    filter(created_date <= as.Date("2012-11-10")) 
+
+Sandy_Date <- Sandy_Data %>% 
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date)) %>% 
+    group_by(complaint_type,year,month,day) %>% 
+    count() %>% 
+    mutate(date = as.Date(paste0(year,"-",month,"-",day)))
+
+ggplot(IDA_Date, aes(date, n ,color = complaint_type)) +
+    geom_line() +
+    scale_color_viridis(discrete = T) +
+    theme_minimal() +
+    xlab("Ida Timeframe") +
+    scale_y_continuous(label=comma)
+
+ggplot(Sandy_Date, aes(date, n ,color = complaint_type)) +
+    geom_line() +
+    scale_color_viridis(discrete = T) +
+    theme_minimal() +
+    xlab("Sandy Timeframe") +
+    scale_y_continuous(label=comma)
+```
+
+#### ii) Time Series Visualization of Ida and Sandy (DEP 311):
+
+For a comparison, we can prepare those that we pulled initially (just sewer complaints) to those that NYCEM recommended. As shown before, the complaints for "sewer" problems to DEP increased a lot during both disasters. I believe this means that sewer complaints are helpful in showing that citizens were using this "e-governance" platform in response to disaster events. 
+```{r, include = TRUE}
+IDA_Sewer <-  DEP_points %>% 
+    filter(created_date >= as.Date("2021-08-22")) %>% 
+    filter(created_date <= as.Date("2021-09-30"),
+           complaint_type == "Sewer") %>%
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date),
+           date = as.Date(paste0(year,"-",month,"-",day)))
+
+Sandy_Sewer <- DEP_points %>% 
+    filter(created_date >= as.Date("2012-10-24")) %>% 
+    filter(created_date <= as.Date("2012-11-2"),
+           complaint_type == "Sewer") %>% 
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date),
+           date = as.Date(paste0(year,"-",month,"-",day)))
+
+ggplot(IDA_Sewer %>% 
+           group_by(complaint_type,date) %>% 
+           count() %>% 
+           st_drop_geometry(), 
+       aes(date, n ,color = complaint_type)) +
+    geom_line() +
+    scale_color_viridis(discrete = T) +
+    theme_minimal() +
+    xlab("Ida Timeframe") +
+    scale_y_continuous(label=comma)
+
+ggplot(Sandy_Sewer %>% 
+           group_by(complaint_type,date) %>% 
+           count() %>% 
+           st_drop_geometry(), 
+       aes(date, n ,color = complaint_type)) +
+    geom_line() +
+    scale_color_viridis(discrete = T) +
+    theme_minimal() +
+    xlab("Sandy Timeframe") +
+    scale_y_continuous(label=comma)
+
+```
+
+
+
+## II) Overlaying data layers
+Now, we can look at all of these geographically - we wish to see whether the 311 complaints are colocated with the FEMA assistance grants.
+
+Because there are many layers we need to look at, we will layer and make this interactive for exploration. Let's take a look, specifically at the times during both disaster dates:
+
+```{r, include = TRUE}
+Sandy_NYCEM <- Sandy_Data %>% # October 29th 2012
+    filter(created_date >= as.Date("2012-10-24")) %>% 
+    filter(created_date <= as.Date("2012-11-2")) %>% 
+    st_make_valid()
+    
+Ida_NYCEM <- IDA_Data %>% # August 26th 2021 storm date
+    filter(created_date >= as.Date("2021-08-22")) %>% 
+    filter(created_date <= as.Date("2021-08-30")) %>% 
+    st_make_valid()
+```
+
+Because there are so many complaints, we will create Kernel Density Map to make Points Legible.
+```{r}
+Ida_sewer_contour <- st_kde(IDA_Sewer) %>% 
+    st_get_contour(cont = c(10,20,30,40,50,60,70,80,90,100))
+
+Ida_NYCEM_contour <- st_kde(Ida_NYCEM) %>% 
+    st_get_contour(cont = c(10,20,30,40,50,60,70,80,90,100))
+
+Sandy_sewer_contour <- st_kde(Sandy_Sewer) %>% 
+    st_get_contour(cont = c(10,20,30,40,50,60,70,80,90,100))
+
+Sandy_NYCEM_contour <- st_kde(Sandy_NYCEM) %>% 
+    st_get_contour(cont = c(10,20,30,40,50,60,70,80,90,100))
+```
+
+Overlaying everything:
+```{r}
+Sandy_eligible_percapita <- NYC_FEMA_Spatial 
+Sandy_ineligible_percapita <- NYC_FEMA_Spatial
+Sandy_eligible_number <- NYC_FEMA_Spatial
+Sandy_ineligible_number <- NYC_FEMA_Spatial
+Ida_eligible_percapita <- NYC_FEMA_Spatial 
+Ida_ineligible_percapita <- NYC_FEMA_Spatial
+Ida_eligible_number <- NYC_FEMA_Spatial
+Ida_ineligible_number <- NYC_FEMA_Spatial
+
+tmap_mode("view")
+tmap_options(check.and.fix = TRUE)
+
+flooding <- tm_shape(extreme_flood) +
+    tm_polygons(col = "darkblue")
+    
+Ida_map <- flooding + 
+    tm_shape(Ida_ineligible_percapita) +
+    tm_polygons(col='inlg_I_', title = "Ida FEMA Ineligible Assistances per capita", palette = "YlOrRd",style = "jenks", alpha = .3) + 
+    tm_shape(Ida_eligible_percapita) +
+    tm_polygons(col='elgb_I_', title = "Ida FEMA Eligible Assistances per capita", palette = "YlOrRd",style = "jenks", alpha = .3) + 
+    tm_shape(Ida_eligible_number) +
+    tm_polygons(col='E_2021.', title = "Ida FEMA Eligible Assistances", palette = "YlOrRd",style = "jenks", alpha = .3) + 
+    tm_shape(Ida_ineligible_number) +
+    tm_polygons(col='I_2021.', title = "Ida FEMA Ineligible Assistances", palette = "YlOrRd",style = "jenks", alpha = .3)    +
+    tm_shape(Ida_NYCEM_contour) + 
+    tm_fill("contlabel",main.title="NYCEM_density", palette = "YlOrRd", lwd = .01,alpha = .3)  +
+    tm_shape(Ida_sewer_contour) + 
+    tm_fill("contlabel",main.title="Sewer_density", palette = "YlOrRd", lwd = .01,alpha = .3) +
+    tm_layout(title = "Overlayed: 311 Complaints, FEMA Assistances, and Flooding", title.size = .8)+
+    tm_scale_bar(position = c("right", "top")) 
+
+Sandy_map <- flooding + 
+    tm_shape(Sandy_ineligible_percapita) +
+    tm_polygons(col='inlg_S_', title = "Sandy FEMA Ineligible Assistances per capita", palette = "YlOrRd",style = "jenks", alpha = .3) + 
+    tm_shape(Sandy_eligible_percapita) +
+    tm_polygons(col='elgb_S_', title = "Sandy FEMA Eligible Assistances per capita", palette = "YlOrRd",style = "jenks", alpha = .3) + 
+    tm_shape(Sandy_eligible_number) +
+    tm_polygons(col='E_2012.', title = "Sandy FEMA Eligible Assistances", palette = "YlOrRd",style = "jenks", alpha = .3) + 
+    tm_shape(Sandy_ineligible_number) +
+    tm_polygons(col='I_2012.', title = "Sandy FEMA Ineligible Assistances", palette = "YlOrRd",style = "jenks", alpha = .3) + 
+    tm_shape(Sandy_NYCEM_contour) + 
+    tm_fill("contlabel",main.title="NYCEM_density", palette = "YlOrRd", lwd = .01,alpha = .3)  +
+    tm_shape(Sandy_sewer_contour) + 
+    tm_fill("contlabel",main.title="Sewer_density", palette = "YlOrRd", lwd = .01,alpha = .3) +
+    tm_layout(title = "Overlayed: 311 Complaints, FEMA Assistances, and Flooding", title.size = .8)+
+    tm_scale_bar(position = c("right", "top")) 
+```
+## III) Results
+When you look at the Sandy and Ida maps, the location of sewer complaints seem colocated with the concentration of FEMA grants. It's difficult, however, to get much information from the eligible vs. ineligible grant information, since the number of both eligible and inelible grants is simply higher where they were needed. 
+
+*Next Steps?*
+
+* Perhaps we can investigate a ratio, such as ineligible/(ineligible + eligible) grants to determine whether there are higher concentrations of ineligible grants (relative to the total), and see if those were colocated with the 311 complaints? 
+
+* I would think that if there were overlap, that would indicate a community in need. We could then also layer in demographics to paint a picture of what those communities were like demographically. 
+```{r}
+Sandy_map
+Ida_map
+```
+
