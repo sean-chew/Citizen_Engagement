@@ -39,9 +39,9 @@ vignettes/*.pdf
 .Renviron
 
 # Large datasets, outputs, intermediates
-/_archived
-/2_Data
-/3_Intermediate
-/4_Outputs
+_archived/
+2_Data/
+3_Intermediate/
+4_Outputs/
 
 
