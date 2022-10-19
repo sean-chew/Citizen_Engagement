@@ -1,3 +1,0 @@
-"0","
-NYPD <- read.socrata(""https://data.cityofnewyork.us/resource/erm2-nwe9.json$limit=10"")
-"

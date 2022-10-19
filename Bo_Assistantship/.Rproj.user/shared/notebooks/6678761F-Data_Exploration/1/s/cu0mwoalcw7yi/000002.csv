@@ -1,5 +1,0 @@
-"0","api_endpoint <- paste0('https://data.cityofnewyork.us/resource/', dataset_id, '.json')
-"
-"2","Error in paste0(""https://data.cityofnewyork.us/resource/"", dataset_id,  : 
-  object 'dataset_id' not found
-"

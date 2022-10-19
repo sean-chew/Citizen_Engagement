@@ -1,6 +1,0 @@
-"0","getwd()"
-"1","[1]"
-"1"," ""/Users/seanchew/Desktop/Bo_Assistantship 2/1_Scripts"""
-"1","
-"
-"0","DEP_Query <- read_rds(""../3_Intermediate/DEP_Data.rds"")"

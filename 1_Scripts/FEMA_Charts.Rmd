@@ -27,7 +27,7 @@ lubridate, readxl, data.table, ggplot2, scales, readr,
 tidyr, zoo, skimr, openxlsx,ggspatial, rgeos, data.table,RColorBrewer,
 tidyverse, rio, collapse, sf, glue, XML, tm, here, purrr, repurrrsive,
 tmap,tidygraph, nabor,igraph, viridis, hrbrthemes,RSocrata,soql,xts,
-tidycensus,tmaptools, eks, leaflet, maps, rosm)
+tidycensus,tmaptools, eks, leaflet, maps, rosm, terra,stars,raster,basemaps,maptiles)
 ```
 
 # Investigation of 311 Complaints and FEMA Assistance Data:
@@ -52,66 +52,129 @@ In this section, I want to read in the shapefiles and analyze them to see what e
     + **NYC_FEMA_damage_Spatial** is a shapefile I created from the dataset that shows FEMA grants during disasters, which is reported at the zip code level at its most granular in order to protect people's privac, as downloaded here: https://www.fema.gov/openfema-data-page/individuals-and-households-program-valid-registrations-v1. One important thing to note is that it provides information on the applications for assistance during the storms, and *whether or not the household was able to get the assistance*. I will be using this in the analysis to show whether or not households got the help they needed.  
 
 ```{r, include = TRUE}
-NYCEM_spatial <- readRDS("./3_Intermediate/NYCEM_spatial.RDS") 
-DEP_points <- read_rds("./3_Intermediate/DEP_points.rds")
-boroughs <- read_sf("./2_Data/borough_boundaries/geo_export_b5bd9a81-0a45-411a-a23f-8a1983296a03.shp")
-tracts <- read_sf("./2_Data/ct_2010/geo_export_1c19ce5f-d77c-4a3f-adbe-7456e4a782a6.shp")
-parks <- read_sf("./2_Data/Open Space (Parks)/geo_export_2addf878-38fa-4c00-8396-5aa5bf54644c.shp")
-zips<- read_sf("./2_Data/ZIP_CODE_040114/ZIP_CODE_040114.shp")  %>% 
-    st_transform(4326)
+NYCEM_spatial <- readRDS("../3_Intermediate/NYCEM_spatial.RDS") 
+DEP_points <- read_rds("../3_Intermediate/DEP_points.rds")
+boroughs <- read_sf("../2_Data/borough_boundaries/geo_export_b5bd9a81-0a45-411a-a23f-8a1983296a03.shp")
+tracts <- read_sf("../2_Data/ct_2010/geo_export_1c19ce5f-d77c-4a3f-adbe-7456e4a782a6.shp")
+parks <- read_sf("../2_Data/Open Space (Parks)/geo_export_2addf878-38fa-4c00-8396-5aa5bf54644c.shp")
+zips<- read_sf("../2_Data/ZIP_CODE_040114/ZIP_CODE_040114.shp")  %>% 
+    st_transform(2263)
+map_pluto <- read_sf("../2_Data/built_env/nyc_mappluto_22v2_shp/MapPLUTO.shp")
 
-moderate_flood <- read_sf("./2_Data/moderate_floodmap/moderate_floodmap.shp")%>% 
-  st_transform(crs = 4326) %>% 
+moderate_flood <- read_sf("../2_Data/moderate_floodmap/moderate_floodmap.shp")%>% 
+  st_transform(crs = 2263) %>% 
   filter(Flooding_C == 2) %>%
   st_zm(flood) %>% 
     st_make_valid()
 
-extreme_flood <-read_sf("./2_Data/extreme_floodmap/Extreme_Flood.shp")%>% 
+extreme_flood <-read_sf("../2_Data/extreme_floodmap/Extreme_Flood.shp")%>% 
     st_make_valid() %>% 
-    st_set_crs(4326)
+    st_set_crs(2263)
 
-NYC_FEMA_Spatial <- read_sf("./3_Intermediate/FEMA_Cleaned.shp")
-NYC_FEMA_damage_Spatial <- read_sf("./3_Intermediate/FEMA_Cleaned_damage.shp")
+NYC_FEMA_Spatial <- read_sf("../3_Intermediate/FEMA_Cleaned.shp")
+NYC_FEMA_damage_Spatial <- read_sf("../3_Intermediate/FEMA_Cleaned_damage.shp")
 
 
-source("./1_Scripts/FEMA_Functions.R")
+source("../1_Scripts/FEMA_Functions.R")
 ```
 
 ```{r}
-# https://rspatialdata.github.io/osm.html 
-# from rosm package:
-nyc_bb <-st_bbox(zips)%>%
-  as.matrix() %>%
-  matrix(nrow =2, ncol = 2)
 
-nyc_bb_tm <- 
-  cbind(nyc_bb[1,],nyc_bb[2,])
+# nyc_dissolve<-boroughs %>% 
+#     st_union() %>% # unite to a geometry object
+#     st_sf()
 
-osm.types()
+# set defaults for the basemap
+# set_defaults(map_service = "carto", map_type = "dark")
+# nyc_raster<-basemap_raster(nyc_dissolve)
+# nyc_raster
 
-NYC_map <- osm.raster(nyc_bb_tm,type = "cartolight")
+
 
 ```
 
 One thing that's interesting is that of the past three storms, the spike in Sandy was the least pronounced, while it becomes more pronounced in 2021 with Henri and Ida.
 ```{r}
-Ida_Sewer <-  DEP_filter(DEP_points,"2021-08-22","2021-9-30") 
-Sandy_Sewer <- DEP_filter(DEP_points,"2012-10-01","2012-11-2")
-Henri_Sewer <-DEP_filter(DEP_points,"2021-08-15","2021-08-30")
+Ida_Sewer <-  DEP_filter(DEP_points,"2021-08-16","2021-09-15") 
+Sandy_Sewer <- DEP_filter(DEP_points,"2012-10-15","2012-11-14")
+Henri_Sewer <-DEP_filter(DEP_points,"2021-08-06","2021-09-05")
+Isaias_Sewer <- DEP_filter(DEP_points,"2020-07-18","2020-08-17")
+Irene_Sewer <- DEP_filter(DEP_points,"2011-08-12","2011-09-11")
 
 Sandy_timeseries <- time_plotting_series(Sandy_Sewer,"Sandy Timeframe")
 Ida_timeseries <- time_plotting_series(Ida_Sewer,"Ida Timeframe")
 Henri_timeseries <- time_plotting_series(Henri_Sewer,"Henri Timeframe")
+Isaias_timeseries <- time_plotting_series(Isaias_Sewer,"Isaias Timeframe")
+Irene_timeseries <- time_plotting_series(Irene_Sewer,"Irene Timeframe")
 
 Sandy_timeseries
-ggsave("./4_Outputs/1_Flooding/sandy_timeseries.jpeg")
+ggsave("../4_Outputs/1_Flooding/sandy_timeseries.jpeg")
 
 Henri_timeseries
-ggsave("./4_Outputs/1_Flooding/henri_timeseries.jpeg")
+ggsave("../4_Outputs/1_Flooding/henri_timeseries.jpeg")
 
 Ida_timeseries
-ggsave("./4_Outputs/1_Flooding/ida_timeseries.jpeg")
+ggsave("../4_Outputs/1_Flooding/ida_timeseries.jpeg")
+
+
 ```
+```{r}
+data_ida <- Ida_Sewer %>% group_by(complaint_type,date) %>% 
+    count() %>% 
+    st_drop_geometry() %>% 
+    mutate(date = 1:30) %>% 
+    rename(ida = n) %>% 
+    select(-c(complaint_type))
+
+data_sandy <- Sandy_Sewer %>% group_by(complaint_type,date) %>% 
+    count() %>% 
+    st_drop_geometry() %>% 
+    mutate(date = 1:30) %>% 
+    rename(sandy = n)%>% 
+    select(-c(complaint_type))
+
+data_isaias <- Isaias_Sewer %>% group_by(complaint_type,date) %>% 
+    count() %>% 
+    st_drop_geometry() %>% 
+    mutate(date = 1:30) %>% 
+    rename(isaias = n)%>% 
+    select(-c(complaint_type))
+
+data_henri <- Henri_Sewer %>% group_by(complaint_type,date) %>% 
+    count() %>% 
+    st_drop_geometry() %>% 
+    mutate(date = 1:30) %>% 
+    rename(henri = n)%>% 
+    select(-c(complaint_type))
+
+data_irene <- Irene_Sewer %>% group_by(complaint_type,date) %>% 
+    count() %>% 
+    st_drop_geometry() %>% 
+    mutate(date = 1:30) %>% 
+    rename(irene = n)%>% 
+    select(-c(complaint_type))
+
+combined <- data_ida %>% 
+    left_join(data_sandy, by = c("date")) %>% 
+    left_join(data_irene, by = c("date")) %>% 
+    pivot_longer(cols = c("irene","ida","sandy"),names_to = "storm")
+
+Combined <- ggplot(combined, aes(x = date)) +
+    geom_line(aes(y = value, color = storm)) +
+    scale_color_viridis(discrete = TRUE, direction = -1) +
+    theme_minimal() +
+    xlab("Days") +
+    ylab("Sewer Complaints") 
+Combined
+ggsave("../4_Outputs/1_Flooding/Combined.jpeg")
+
+# ggplot(economics, aes(x=date)) + 
+#   geom_line(aes(y = psavert), color = "darkred") + 
+#   geom_line(aes(y = uempmed), color="steelblue", linetype="twodash") 
+
+```
+
+
 We can obtain a contour map of the three storms to see where complaints were most concentrated.
 ```{r}
 
@@ -140,7 +203,7 @@ ida_contour <- tm_shape(boroughs, unit = "imperial")+
               bg.color = "darkgrey", 
               frame = FALSE)
 
-tmap_save(ida_contour,"./4_Outputs/1_Flooding/ida_contour.jpeg")
+tmap_save(ida_contour,"../4_Outputs/1_Flooding/ida_contour.jpeg")
 
 ida_damage_pc <- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
     tm_fill(title = "Count of Damaged Buildings per Capita","dmgd_d_", 
@@ -153,7 +216,7 @@ ida_damage_pc <- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
               bg.color = "darkgrey", 
               frame = FALSE)
 
-tmap_save(ida_damage_pc,"./4_Outputs/1_Flooding/ida_damage_pc.jpeg")
+tmap_save(ida_damage_pc,"../4_Outputs/1_Flooding/ida_damage_pc.jpeg")
 
 ida_damage <- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
     tm_fill(title = "Count of Damaged Buildings","damgd_d", 
@@ -164,7 +227,7 @@ ida_damage <- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
               title.size = 1,
               bg.color = "darkgrey", 
               frame = FALSE)
-tmap_save(ida_damage,"./4_Outputs/1_Flooding/ida_damage.jpeg")
+tmap_save(ida_damage,"../4_Outputs/1_Flooding/ida_damage.jpeg")
 ```
 Comparing the complaints of Sandy
 ```{r}
@@ -180,7 +243,7 @@ sandy_contour <- tm_shape(boroughs, unit = "imperial")+
               bg.color = "darkgrey", 
               frame = FALSE)
 
-tmap_save(sandy_contour,"./4_Outputs/1_Flooding/sandy_contour.jpeg")
+tmap_save(sandy_contour,"../4_Outputs/1_Flooding/sandy_contour.jpeg")
 
 sandy_damage_pc <-tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
     tm_fill(title = "Counted Damaged Buildings per Capita","dmgd_s_", 
@@ -193,7 +256,7 @@ sandy_damage_pc <-tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
               bg.color = "darkgrey", 
               frame = FALSE)
 
-tmap_save(sandy_damage_pc,"./4_Outputs/1_Flooding/sandy_damage_pc.jpeg")
+tmap_save(sandy_damage_pc,"../4_Outputs/1_Flooding/sandy_damage_pc.jpeg")
 
 sandy_damage<- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
     tm_fill(title = "Count of Damaged Buildings","dmgd_sn", 
@@ -205,6 +268,87 @@ sandy_damage<- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
               bg.color = "darkgrey", 
               frame = FALSE)
 
-tmap_save(sandy_damage,"./4_Outputs/1_Flooding/sandy_damage.jpeg")
+tmap_save(sandy_damage,"../4_Outputs/1_Flooding/sandy_damage.jpeg")
 
 ```
+
+```{r}
+ida_zip <- Ida_Sewer %>% 
+    group_by(incident_zip) %>% 
+    count() %>% 
+    ungroup() %>% 
+    rename(ida_complaints = n)
+
+sandy_zip <- Sandy_Sewer %>% 
+    group_by(incident_zip) %>% 
+    count() %>% 
+    ungroup() %>% 
+    rename(sandy_complaints = n)
+
+combined_all <- zips %>% 
+    merge(ida_zip %>%  st_drop_geometry, by.x = "ZIPCODE", by.y="incident_zip")%>%
+    merge(sandy_zip%>%  st_drop_geometry, by.x = "ZIPCODE", by.y="incident_zip")%>%
+    merge(NYC_FEMA_damage_Spatial %>%  st_drop_geometry, by.x = "ZIPCODE", by.y="ZIPCODE")%>%
+    dplyr::select(c("ZIPCODE","PO_NAME","POPULATION","COUNTY","ida_complaints","sandy_complaints",
+             "dmgd_sn","damgd_d","dmgd_s_","dmgd_d_")) %>% 
+    mutate(ida_comp_q = ntile(ida_complaints/POPULATION, n = 5),
+           ida_comp_q = coalesce(ida_comp_q, 0),
+           sandy_comp_q = ntile(sandy_complaints/POPULATION, n = 5),
+           sandy_comp_q = coalesce(sandy_comp_q, 0),
+           ida_damg_q = ntile(dmgd_d_, n = 5),
+           ida_damg_q = coalesce(ida_damg_q, 0),
+           sandy_damg_q = ntile(dmgd_s_, n = 5),
+           sandy_damg_q = coalesce(sandy_damg_q, 0),
+           ida_composite = ifelse(ida_comp_q - ida_damg_q<0,0,ida_comp_q - ida_damg_q),
+           sandy_composite= ifelse(sandy_comp_q - sandy_damg_q<0,0,sandy_comp_q - sandy_damg_q)) %>% 
+    st_transform(crs = 3857)
+
+ida_composite <- final_plotting(combined_all,"Ida Composite Score","ida_composite")
+ida_damage <- final_plotting(combined_all,"Ida Complaints Score","ida_comp_q")
+ida_complaints <- final_plotting(combined_all,"Ida Damages Score","ida_damg_q")
+
+
+sandy_composite <- final_plotting(combined_all,"Sandy Composite Score","sandy_composite")
+sandy_damage <- final_plotting(combined_all,"Sandy Complaints Score","sandy_comp_q")
+sandy_complaints <- final_plotting(combined_all,"Sandy Damages Score","sandy_damg_q")
+
+ida_composite
+ida_damage
+ida_complaints
+sandy_composite
+sandy_damage
+sandy_complaints
+# damage_raster = st_rasterize(NYC_FEMA_damage_Spatial)
+# plot(damage_raster)
+# 
+# damage_raster = st_rasterize(NYC_FEMA_damage_Spatial)
+# plot(damage_raster)
+# 
+# ida_raster <- Ida_Sewer %>% group_by(,date) %>% 
+#     count() %>% 
+#     st_drop_geometry() %>% 
+#     mutate(date = 1:30) %>% 
+#     rename(ida = n) %>% 
+#     select(-c(complaint_type))
+# 
+# data_sandy <- Sandy_Sewer %>% group_by(complaint_type,date) %>% 
+#     count() %>% 
+#     st_drop_geometry() %>% 
+#     mutate(date = 1:30) %>% 
+#     rename(sandy = n)%>%
+```
+
+Choose the Zip Codes for a zoom in:
+
+```{r}
+	
+ozone_park_zip <- c("11420")
+forest_hills_zip <- c("11375")
+flushing_zip <- c("11367")
+
+zipcode_analysis(ozone_park_zip,combined_all,Ida_Sewer,"Ozone Park During Ida",2000)
+zipcode_analysis(forest_hills_zip,combined_all,Sandy_Sewer,"Forest Hils During Sandy",2000)
+zipcode_analysis(flushing_zip,combined_all,Sandy_Sewer,"Flushing During Sandy",2000)
+```
+
+
