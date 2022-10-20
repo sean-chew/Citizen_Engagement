@@ -23,10 +23,10 @@ DEP_filter <-function(data,startdate,enddate){
 
 time_plotting_series <- function(data,title){
     plot<-ggplot(data %>% 
-                     group_by(complaint_type,date) %>% 
+                     group_by(complaint_type,created_date) %>% 
                      count() %>% 
                      st_drop_geometry(), 
-                 aes(date, n ,color = complaint_type)) +
+                 aes(created_date, n ,color = complaint_type)) +
         geom_line() +
         scale_color_viridis(discrete = T) +
         theme_minimal() +

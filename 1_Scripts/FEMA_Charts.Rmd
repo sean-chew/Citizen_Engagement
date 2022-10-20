@@ -14,7 +14,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ### Set Environment ------------------------------------------------------------
 # Clear the environment
-rm(list=ls())
+#rm(list=ls())
 gc()
 # So the code will compile warnings as per usual
 options(warn = 0)
@@ -166,7 +166,7 @@ Combined <- ggplot(combined, aes(x = date)) +
     xlab("Days") +
     ylab("Sewer Complaints") 
 Combined
-ggsave("../4_Outputs/1_Flooding/Combined.jpeg")
+ggsave("../4_Outputs/2_FEMA_Charts//Combined.pdf")
 
 # ggplot(economics, aes(x=date)) + 
 #   geom_line(aes(y = psavert), color = "darkred") + 
@@ -203,7 +203,7 @@ ida_contour <- tm_shape(boroughs, unit = "imperial")+
               bg.color = "darkgrey", 
               frame = FALSE)
 
-tmap_save(ida_contour,"../4_Outputs/1_Flooding/ida_contour.jpeg")
+tmap_save(ida_contour,"../4_Outputs/1_Flooding/ida_contour.pdf")
 
 ida_damage_pc <- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
     tm_fill(title = "Count of Damaged Buildings per Capita","dmgd_d_", 
@@ -216,7 +216,7 @@ ida_damage_pc <- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
               bg.color = "darkgrey", 
               frame = FALSE)
 
-tmap_save(ida_damage_pc,"../4_Outputs/1_Flooding/ida_damage_pc.jpeg")
+tmap_save(ida_damage_pc,"../4_Outputs/1_Flooding/ida_damage_pc.pdf")
 
 ida_damage <- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
     tm_fill(title = "Count of Damaged Buildings","damgd_d", 
@@ -227,7 +227,7 @@ ida_damage <- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
               title.size = 1,
               bg.color = "darkgrey", 
               frame = FALSE)
-tmap_save(ida_damage,"../4_Outputs/1_Flooding/ida_damage.jpeg")
+tmap_save(ida_damage,"../4_Outputs/1_Flooding/ida_damage.pdf")
 ```
 Comparing the complaints of Sandy
 ```{r}
@@ -243,7 +243,7 @@ sandy_contour <- tm_shape(boroughs, unit = "imperial")+
               bg.color = "darkgrey", 
               frame = FALSE)
 
-tmap_save(sandy_contour,"../4_Outputs/1_Flooding/sandy_contour.jpeg")
+tmap_save(sandy_contour,"../4_Outputs/1_Flooding/sandy_contour.pdf")
 
 sandy_damage_pc <-tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
     tm_fill(title = "Counted Damaged Buildings per Capita","dmgd_s_", 
@@ -256,7 +256,7 @@ sandy_damage_pc <-tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
               bg.color = "darkgrey", 
               frame = FALSE)
 
-tmap_save(sandy_damage_pc,"../4_Outputs/1_Flooding/sandy_damage_pc.jpeg")
+tmap_save(sandy_damage_pc,"../4_Outputs/1_Flooding/sandy_damage_pc.pdf")
 
 sandy_damage<- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
     tm_fill(title = "Count of Damaged Buildings","dmgd_sn", 
@@ -268,7 +268,7 @@ sandy_damage<- tm_shape(NYC_FEMA_damage_Spatial, unit = "imperial")+
               bg.color = "darkgrey", 
               frame = FALSE)
 
-tmap_save(sandy_damage,"../4_Outputs/1_Flooding/sandy_damage.jpeg")
+tmap_save(sandy_damage,"../4_Outputs/1_Flooding/sandy_damage.pdf")
 
 ```
 

@@ -11,7 +11,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ### Set Environment ------------------------------------------------------------
 # Clear the environment
-rm(list=ls())
+#rm(list=ls())
 gc()
 # So the code will compile warnings as per usual
 options(warn = 0)
@@ -220,6 +220,36 @@ dep_filtered_monthly_plot_perc
 dep_annual_plot_perc
 dep_monthly_plot_perc
 
+
+DEP_time_series_s <- DEP_points %>%
+    st_drop_geometry() %>% 
+    filter(complaint_type %in% c("Sewer")) %>% 
+    mutate(month = month(created_date),
+           year = year(created_date),
+           day = day(created_date),
+           date = as.Date(paste0(year,"-",month,"-",day))) %>%
+    group_by(complaint_type,date) %>% 
+    count() %>% 
+    mutate(month = month(date),
+           year = year(date))
+
+DEP_monthly_s <- DEP_time_series_s %>%
+    group_by(month,year) %>%
+    summarise(n = sum(n)) %>% 
+    ungroup() %>%
+    mutate(plot_time = ymd(paste0(year,"-",month,"-1")),
+           perc = n/sum(n))
+
+# DEP_annual_s <- DEP_monthly_s %>% 
+#   group_by(year,complaint_type) %>% 
+#   summarise(n = sum(n)) %>% 
+#   mutate(year = ymd(paste0(year,"-1-1")),
+#          perc = n/sum(n)) 
+
+
+dep_filtered_monthly_plot_volume_s <-plotComplaints(DEP_monthly_s,"plot_time","n","complaint_type")
+dep_filtered_monthly_plot_volume_s
+ggsave("../4_Outputs/2_FEMA_Charts/time_series.pdf",,width = 10, height = 4)
 
 ```
 There's definitely a seasonality to the data for the water system. Perhaps this

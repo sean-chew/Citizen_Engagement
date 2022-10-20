@@ -87,7 +87,7 @@ join_shapes <- function(littleshape){
 }
 
 plotComplaints <- function(data,time_frame,n,complaint_type) {
-    plot <- ggplot(data, aes_string(time_frame, n ,fill = complaint_type)) +
+    plot <- ggplot(data, aes_string(time_frame, n )) + #,fill = complaint_type
         geom_area() +
         scale_fill_viridis(discrete = T) +
         theme_minimal()  +
