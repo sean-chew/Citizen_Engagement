@@ -1,0 +1,288 @@
+---
+title: "Data_Exploration"
+author: "Sean"
+date: "1/17/2022"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+### Set Environment ------------------------------------------------------------
+# Clear the environment
+#rm(list=ls())
+gc()
+# So the code will compile warnings as per usual
+options(warn = 0)
+# Turn off scientific notation
+options(scipen = 999)
+### Load Packages --------------------------------------------------------------
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(dplyr, magrittr, stringr, reshape2, janitor,
+lubridate, readxl, data.table, ggplot2, scales, readr,
+tidyr, zoo, skimr, openxlsx,ggspatial, rgeos, data.table,RColorBrewer,
+tidyverse, rio, collapse, sf, glue, XML, tm, here, purrr, repurrrsive,
+tmap,tidygraph, nabor,igraph, viridis, hrbrthemes,RSocrata,soql,xts,
+tidycensus)
+```
+
+
+### Functions Used:
+```{r}
+#source("./Exploration_Functions.R")
+
+```
+
+# Data Exploration of 311 Data
+
+## Part 1: Exploring different agencies and setting API up:
+
+### First Test of 311 data:
+
+```{r}
+dataset_id <- "erm2-nwe9" #311 complaint open data
+api_endpoint <- paste0('https://data.cityofnewyork.us/resource/', dataset_id, '.json')
+api_token <- "YRWk8RdZZ9xPMVbxc0QaHgYFU"
+
+parks_id <- "y6ja-fw4f"
+parks_endpoint <- paste0('https://data.cityofnewyork.us/resource/', parks_id, '.json')
+```
+First step will be to set up our environment and begin querying using the 
+socrata package. I will test 10,000 entries first.
+
+```{r}
+query_params <- soql() %>%
+    soql_add_endpoint(api_endpoint) %>%
+    soql_limit(10000)
+
+query <- read.socrata(
+  query_params,
+  app_token = api_token
+)
+
+names(query)
+agencies <- unique(query$agency)
+agencies
+```
+
+
+### Exploring different agencies:
+Because there are many agencies, I will need to dive in to see what agencies 
+there are. Agencies I'm interested in include Department of Environmental 
+Protection, Emergency Management, Health and Mental Hygenie, 311, and buildings
+```{r}
+
+descriptors <- function(department) {
+    descriptors <- query %>% 
+        filter(agency == department) %>% 
+        pull(descriptor) %>% 
+        unique() %>% 
+        as.data.frame()
+    return(descriptors)
+}
+
+agencies <- c("DOHMH","DEP","DOB")
+
+DOHMH <- descriptors("DOHMH")
+DEP <- descriptors("DEP")
+DOB <- descriptors("DOB")
+
+
+DOHMH
+DEP
+DOB
+
+
+```
+
+
+## Part 2: Diving into DEP data:
+
+### Pulling DEP 311 complaints:
+Because there are many entries, I created an API token to not encounter throttle
+limits. There are millions of entries, so I will save in a more compact data 
+type, RDS. We can load this in quicker next time. The Query will be commented
+out so we can query again if needed.
+```{r}
+## For Querying:
+DEP_params <- soql() %>%
+    soql_add_endpoint(api_endpoint) %>%
+    soql_simple_filter("agency","DEP") %>% 
+    soql_limit(100)
+
+DEP_Query <- read.socrata(
+  DEP_params,
+  app_token = api_token
+)
+        
+# saveRDS(DEP_Query,"DEP_Data.rds")
+
+DEP_Query <- read_rds("../3_Intermediate/DEP_Data.rds")
+skim(DEP_Query)
+```
+
+### Looking at the most important complaint types:
+Overall, it looks like the highest complaints are from water system, followed by
+Noise, and Sewer. 
+```{r}
+DEP_Query_by_type <-DEP_Query %>% 
+  group_by(complaint_type) %>% 
+  count() %>% 
+  arrange(by = n)
+
+DEP_Query_by_type
+```
+
+```{r}
+head(DEP_Query)
+IDA_Data <-  DEP_Query %>% 
+    filter(created_date >= as.Date("2021-08-26")) %>% 
+    filter(created_date <= as.Date("2021-09-04")) 
+
+IDA_Date <- IDA_Data%>% 
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date)) %>% 
+    group_by(complaint_type,year,month,day) %>% 
+    count() %>% 
+    mutate(date = as.Date(paste0(year,"-",month,"-",day)))
+
+names(IDA_Date)
+
+ggplot(IDA_Date, aes(IDA_Date$date, n ,color = IDA_Date$complaint_type)) +
+    geom_line() +
+    scale_color_viridis(discrete = T) +
+    theme_minimal() +
+    xlab("Ida Timeframe") +
+    scale_y_continuous(label=comma)
+
+#ggsave("../4_Outputs/IDA_complaints.png")
+
+Sandy_Data <-  DEP_Query %>% 
+    filter(created_date >= as.Date("2012-10-22")) %>% 
+    filter(created_date <= as.Date("2012-11-2")) 
+
+Sandy_Date <- Sandy_Data %>% 
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date)) %>% 
+    group_by(complaint_type,year,month,day) %>% 
+    count() %>% 
+    mutate(date = as.Date(paste0(year,"-",month,"-",day)))
+
+ggplot(Sandy_Date, aes(Sandy_Date$date, n ,color = Sandy_Date$complaint_type)) +
+    geom_line() +
+    scale_color_viridis(discrete = T) +
+    theme_minimal() +
+    xlab("Sandy Timeframe") +
+    scale_y_continuous(label=comma)
+
+#ggsave("../4_Outputs/Sandy_complaints.png")
+
+```
+
+
+```{r}
+DEP_points <- read_rds("../3_Intermediate/DEP_points.rds")
+
+IDA_Data <-  DEP_points %>% 
+    filter(created_date >= as.Date("2021-08-26")) %>% 
+    filter(created_date <= as.Date("2021-09-04"),
+           complaint_type == "Sewer") %>%
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date),
+           date = as.Date(paste0(year,"-",month,"-",day)))
+
+Sandy_Data <- DEP_points %>% 
+    filter(created_date >= as.Date("2012-10-22")) %>% 
+    filter(created_date <= as.Date("2012-11-2"),
+           complaint_type == "Sewer") %>% 
+    mutate(day = day(created_date),
+           month = month(created_date),
+           year = year(created_date),
+           date = as.Date(paste0(year,"-",month,"-",day)))
+
+```
+
+```{r}
+# boroughs <- read_sf("../2_Data/borough_boundaries/geo_export_b5bd9a81-0a45-411a-a23f-8a1983296a03.shp")
+tracts <- read_sf("../2_Data/ct_2010/geo_export_1c19ce5f-d77c-4a3f-adbe-7456e4a782a6.shp")
+parks <- read_sf("../2_Data/Open Space (Parks)/geo_export_2addf878-38fa-4c00-8396-5aa5bf54644c.shp")
+
+
+# tracts <- get_acs(geography = "tract",
+#               state = "New York",
+#               county = c(
+#                 "Bronx",
+#                 "Kings",
+#                 "New York",
+#                 "Queens", 
+#                 "Richmond"),
+#               year = 2020,
+#               variables = "B19013_001",
+#               key = "00c9ebc1f593573f959d804c31974d714e280b35",
+#               geometry = TRUE)
+# 
+# park_params <- soql() %>%
+#     soql_add_endpoint(parks_endpoint) 
+# 
+# parks_Query <- read.socrata(
+#   park_params,
+#   app_token = api_token
+# )
+
+```
+
+```{r}
+anim_ida <- tm_shape(tracts) +
+    tm_polygons(lwd = .1) +
+    tm_shape(parks) +
+    tm_fill(col = "#99d8c9",alpha = .5)+
+    tm_shape(IDA_Data)+
+    tm_dots() +
+    tm_facets(along = "date", free.coords = FALSE) +
+    tm_layout(
+              main.title.size = 1,
+              main.title.fontface = 2
+    )
+
+anim_ida
+```
+
+
+```{r}
+tmap_animation(tm=anim_ida, filename = "../4_Outputs/Ida.gif", delay = 100)
+```
+
+
+```{r}
+
+anim_sandy <- tm_shape(tracts) +
+    tm_polygons(lwd = .1) +
+    tm_shape(parks) +
+    tm_fill(col = "#99d8c9",alpha = .5)+
+    tm_shape(Sandy_Data)+
+    tm_dots() +
+    tm_facets(along = "date", free.coords = FALSE) +
+    tm_layout(
+              main.title.size = 1,
+              main.title.fontface = 2
+    )
+
+anim_sandy
+
+
+```
+
+
+```{r}
+tmap_animation(tm=anim_sandy, filename = "../4_Outputs/sandy.gif", delay = 100)
+```
+
+
+
+
+
+
